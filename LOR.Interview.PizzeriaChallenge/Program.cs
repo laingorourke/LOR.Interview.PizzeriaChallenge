@@ -1,112 +1,106 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using PizzeriaChallenge.Models;
+using PizzeriaChallenge.Services;
+using System.Collections.Generic;
+using PizzeriaChallenge.Interfaces;
 
-namespace LOR.Interview.PizzeriaChallenge.Console
+namespace PizzeriaChallenge
 {
     class Program
     {
         static void Main(string[] args)
         {
-            System.Console.WriteLine("Welcome to LOR Pizzeria! Please select the store location: Brisbane OR Sydney");
-            var Store = System.Console.ReadLine();
+            string storeLocation;
+            Store store;
 
-            System.Console.WriteLine("MENU");
-            if (Store == "Brisbane")
+            // Prompt for valid store location
+            while (true)
             {
-                System.Console.WriteLine("Capriciosa - mushrooms, cheese, ham, mozarella - 20 AUD");
-                System.Console.WriteLine("Florenza - olives, pastrami, mozarella, onion - 21 AUD");
-                System.Console.WriteLine("Margherita - mozarella, onion, garlic, oregano - 22 AUD");
+                Console.WriteLine("Welcome to LOR Pizzeria! Please select the store location: Brisbane, Sydney, or Gold Coast");
+                storeLocation = Console.ReadLine();
+
+                store = StoreFactory.CreateStore(storeLocation);
+                if (store != null)
+                {
+                    break;
+                }
+                Console.WriteLine("Invalid store location. Please try again.");
             }
-            else if (Store == "Sydney")
+
+            Console.WriteLine("MENU");
+            store.Menu.DisplayMenu();
+
+            int pizzaCount;
+            // Prompt for valid number of pizzas
+            while (true)
             {
-                System.Console.WriteLine("Capriciosa - mushrooms, cheese, ham, mozarella - 30 AUD");
-                System.Console.WriteLine("Inferno - chili peppers, mozzarella, chicken, cheese - 31 AUD");
+                Console.WriteLine("How many pizzas would you like to order?");
+                if (int.TryParse(Console.ReadLine(), out pizzaCount) && pizzaCount > 0)
+                {
+                    break;
+                }
+                Console.WriteLine("Invalid number of pizzas. Please enter a positive number.");
             }
 
-
-
-            System.Console.WriteLine("What can I get you?");
-
-            var pizzaType = System.Console.ReadLine();
-
-
-            var pizza = new Pizza();
-            switch(pizzaType)
+            var order = new Order(store);
+            for (int i = 0; i < pizzaCount; i++)
             {
-                case "Capriciosa":
-                    var capriciosaPrice = 0;
-                    if (Store == "Brisbane") capriciosaPrice = 20;
-                    if (Store == "Sydney") capriciosaPrice = 30;
+                IPizza pizza = null;
+                // Prompt for valid pizza type
+                while (pizza == null)
+                {
+                    Console.WriteLine($"What can I get you for pizza #{i + 1}?");
+                    var pizzaType = Console.ReadLine();
+                    pizza = store.Menu.CreatePizza(pizzaType);
+                    if (pizza == null)
+                    {
+                        Console.WriteLine("Invalid pizza type. Please try again.");
+                    }
+                }
 
-                    pizza = new Pizza(){ Name = "Capriciosa", Ingredients = new List<string>{ "mushrooms", "cheese", "ham", "mozarella" }, BasePrice = capriciosaPrice};
-                    break;
-                case "Florenza":
-                    pizza = new Pizza() { Name = "Florenza", Ingredients = new List<string> { "olives", "pastrami", "mozarella", "onion" }, BasePrice = 21};
-                    break;
-                case "Margherita":
-                    pizza = new Pizza() { Name = "Margherita", Ingredients = new List<string> { "mozarella", "onion", "garlic", "oregano" }, BasePrice = 22};
-                    break;
-                case "Inferno":
-                    pizza = new Pizza() { Name = "Inferno", Ingredients = new List<string> { "chili peppers", "mozzarella", "chicken", "cheese" }, BasePrice = 31};
-                    break;
-                default:
-                    break;
+                Console.WriteLine("Would you like any extra toppings? (yes/no)");
+                var extraToppingsResponse = Console.ReadLine();
+                if (extraToppingsResponse?.ToLower() == "yes")
+                {
+                    pizza = AddExtraToppings(pizza);
+                }
+
+                order.AddPizza(pizza);
             }
-            pizza.Prepare();
-            pizza.Bake();
-            pizza.Cut();
-            pizza.Box();
-            pizza.PrintReceipt();
 
-            System.Console.WriteLine("\nYour pizza is ready!");
-        }
-    }
+            order.ProcessOrder();
 
-    public class Pizza
-    {
-        public string Name { get; set; }
-        public List<string> Ingredients { get; set; } = new List<string>();
-        public decimal BasePrice { get; set; }
-
-        public void Prepare()
-        {
-            System.Console.WriteLine("Preparing " + Name + "...");
-            System.Console.Write("Adding ");
-            foreach (var i in Ingredients)
-            {
-                System.Console.Write(i + " ");
-            }
-            System.Console.WriteLine();
+            Console.WriteLine("\nYour order is ready!");
         }
 
-        public void Bake()
+        static IPizza AddExtraToppings(IPizza pizza)
         {
-            if(Name == "Margherita")
-            System.Console.WriteLine("Baking pizza for 15 minutes at 200 degrees...");
-            else
+            var toppingPrices = new Dictionary<string, decimal>
             {
-                System.Console.WriteLine("Baking pizza for 30 minutes at 200 degrees...");
-            }
-        }
+                { "Extra Cheese", 2.00m },
+                { "Mayo", 1.50m },
+                { "Olive Oil", 1.00m }
+            };
 
-        public void Cut()
-        {
-            if (Name == "Florenza")
-                System.Console.WriteLine("Cutting pizza into 6 slices with a special knife...");
-            else
+            Console.WriteLine("Available toppings: Extra Cheese (2.00 AUD), Mayo (1.50 AUD), Olive Oil (1.00 AUD)");
+            Console.WriteLine("Please enter the toppings you want, separated by commas:");
+
+            var toppings = Console.ReadLine().Split(',');
+            foreach (var topping in toppings)
             {
-                System.Console.WriteLine("Cutting pizza into 8 slices...");
+                var trimmedTopping = topping.Trim();
+                if (toppingPrices.ContainsKey(trimmedTopping))
+                {
+                    pizza.AddTopping(trimmedTopping);
+                    pizza.BasePrice += toppingPrices[trimmedTopping];
+                }
+                else
+                {
+                    Console.WriteLine($"Invalid topping: {trimmedTopping}. It will not be added.");
+                }
             }
-        }
 
-        public void Box()
-        {
-            System.Console.WriteLine("Putting pizza into a nice box...");
-        }
-
-
-        public void PrintReceipt()
-        {
-            System.Console.WriteLine("Total price: " + BasePrice);
+            return pizza;
         }
     }
 }
